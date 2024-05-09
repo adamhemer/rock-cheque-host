@@ -146,7 +146,7 @@ hr {
   width: 100%;
 }
 
-#replay-button, #answer-button {
+#start-button, #answer-button {
   font-size: 3vh;
   margin-top: 2vh;
   margin-bottom: 2vh;
@@ -160,6 +160,11 @@ hr {
 .validate-buttons {
   margin-bottom: 2vh;
   font-size: 5vh;
+}
+
+.validate-buttons:disabled {
+  background-color: #f4f4f6 !important;
+  border: 1px solid #c7c7ce;
 }
 
 #correct-button {
@@ -178,6 +183,7 @@ hr {
   margin: 2vh 10% 3vh 10%;
   width: 80%;
   border: 1px solid black;
+  height: 5.5vh;
 }
 
 #question-done-button {
@@ -194,4 +200,10 @@ hr {
 
 #question-text {
   font-size: 4vh;
+}
+
+.event-log {
+  width: 80%;
+  margin: 10%;
+  height: 60vh;
 }

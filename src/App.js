@@ -250,32 +250,91 @@ class App extends React.Component {
         )
     }
 
+    playerAnswer(state) {
+        this.server.post('answer-response', {
+            correct: state
+        });
+    }
+
+    activateBuzzers() {
+        this.server.post('activate-buzzers');
+    }
+
+    showAnswer() {
+        this.server.post('show-answer');
+    }
+
+    closeQuestion() {
+        this.server.post('select-question');
+        this.state.window = WINDOWS.PICK_CATEGORY;
+    }
+
     readQuestionPanel() {
         if (!this.state.gameState || !this.state.gameState.activeQuestion) { return; }
         
+        let buzzedPlayer = "";
+        if (this.state.gameState.buzzedPlayer) {
+            buzzedPlayer = this.state.gameState.buzzedPlayer.name;
+        }
+
+        let startText = "Buzzers"
+        if (this.state.gameState.activeQuestion.type === "Video" || this.state.gameState.activeQuestion.type === "Audio") {
+            startText = "Start"
+        }
+
         return (
             <div className="question" style={{ display: this.state.window === WINDOWS.QUESTION ? "block" : "none" }}>
-                <p className="question-details">{this.state.gameState.activeCategory.title}</p>
+                <p className="question-details">{this.state.gameState.activeCategory.title} for {this.state.gameState.activeQuestion.reward}</p>
                 <p className="question-details" id="question-text">{this.state.gameState.activeQuestion.title}</p>
                 <p className="question-details">Answer: {this.state.gameState.activeQuestion.answer}</p>
+                {/* <p className="question-details">Reward: {this.state.gameState.activeQuestion.reward}</p> */}
 
                 <hr></hr>
                 <h4>Player Controls</h4>
                 <div id="player-controls">
-                    <p id="buzzed-player">Callum</p>
-                    <button type="button" className="question-buttons double-button validate-buttons" id="correct-button">✔</button>
-                    <button type="button" className="question-buttons double-button validate-buttons" id="incorrect-button">✘</button>
+                    <p id="buzzed-player">{buzzedPlayer}</p>
+                    <button onClick={() => this.playerAnswer(true)} type="button" className="question-buttons double-button validate-buttons" id="correct-button" disabled={this.state.gameState.state !== STATES.BUZZED}>✔</button>
+                    <button onClick={() => this.playerAnswer(false)} type="button" className="question-buttons double-button validate-buttons" id="incorrect-button" disabled={this.state.gameState.state !== STATES.BUZZED}>✘</button>
                 </div>
 
                 <hr></hr>
-                <h4>Display Controls</h4>
+                <h4>Game Controls</h4>
                 <div id="display-controls">
-                    <button type="button" className="question-buttons double-button" id="replay-button">Replay</button>
-                    <button type="button" className="question-buttons double-button" id="answer-button">Show Answer</button>
+                    <button onClick={this.activateBuzzers.bind(this)} type="button" className="question-buttons double-button" id="start-button" disabled={this.state.gameState.state !== STATES.WAITING}>{startText}</button>
+                    <button onClick={this.showAnswer.bind(this)} type="button" className="question-buttons double-button" id="answer-button" disabled={this.state.gameState.state < STATES.ARMED || this.state.gameState.state === STATES.ANSWERED}>Show Answer</button>
                 </div>
 
                 <hr></hr>
-                <button type="button" id="question-done-button">Done</button>
+                <button onClick={this.closeQuestion.bind(this)} type="button" id="question-done-button">Done</button>
+            </div>
+        )
+    }
+
+    pickQuestionButton() {
+        if (!this.state.gameState || !this.state.gameState.activeQuestion) {
+            this.changeWindow(WINDOWS.PICK_CATEGORY);
+        } else {
+            this.changeWindow(WINDOWS.QUESTION);
+        }
+    }
+
+    openLogWindow() {
+        this.server.get('event-log')
+        .then(res => {
+            this.setState({ log: res.data });
+            this.changeWindow(WINDOWS.LOG);
+        });
+    }
+
+    logPanel() {
+        if (!this.state.log || !this.window === WINDOWS.LOG) { return; }
+        // var textarea = document.getElementById('textarea_id');
+        // textarea.scrollTop = textarea.scrollHeight;
+        return (
+            <div className="log-panel" style={{ display: this.state.window === WINDOWS.LOG ? "block" : "none" }}>
+                <textarea className="event-log" readOnly={true}>
+                    {this.state.log.join("\n")}
+                </textarea>
             </div>
         )
     }
@@ -291,10 +350,10 @@ class App extends React.Component {
                 </div>
 
                 <div className="main-menu" style={{ display: this.state.window === WINDOWS.MENU ? "block" : "none" }}>
-                    <button onClick={() => this.changeWindow(WINDOWS.PICK_CATEGORY)} type="button">Pick Question</button>
+                    <button onClick={() => this.pickQuestionButton()} type="button">Pick Question</button>
                     <button onClick={() => this.changeWindow(WINDOWS.PLAYERS)} type="button">View Players</button>
                     <button onClick={() => this.changeWindow(WINDOWS.BIND_PLAYER)} type="button">Bind Player</button>
-                    <button onClick={() => this.changeWindow(WINDOWS.LOG)} type="button">Event Log</button>
+                    <button onClick={() => this.openLogWindow()} type="button">Event Log</button>
                     <button onClick={() => this.changeWindow(WINDOWS.DEMO)} type="button">Demo Mode</button>
                     <button onClick={() => this.changeWindow(WINDOWS.DEBUG)} type="button">Debug</button>
                 </div>
@@ -309,7 +368,7 @@ class App extends React.Component {
                 
                 {this.bindPanel()}
                 
-                <div className="log-panel" style={{ display: this.state.window === WINDOWS.LOG ? "block" : "none" }}></div>
+                {this.logPanel()}
                 <div className="demo-panel" style={{ display: this.state.window === WINDOWS.DEMO ? "block" : "none" }}></div>
                 <div className="debug" style={{ display: this.state.window === WINDOWS.DEBUG ? "block" : "none" }}>
                     <button onClick={() => this.changeWindow(WINDOWS.GAME_STATE)} type="button">Game State</button>
