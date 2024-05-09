@@ -92,6 +92,19 @@ class App extends React.Component {
 
                 this.setState({ gameState: res.data }, () => {
                     console.log(this.state.gameState.players[0]);
+
+                    // if (this.state.gameState.state >= STATES.WAITING && this.state.gameState.state <= STATES.ANSWERED) {
+                    //     console.log("Question")
+                    //     this.setState({
+                    //         showQuestion: true,showGrid: false });
+                    // } else {
+                    //     this.setState({
+                    //         showQuestion: false,
+                    //         showGrid: true
+                    //     });
+                    // }
+
+
                 });
                 this.fetchTimeout = setTimeout(this.fetchState, 1000)
 
@@ -143,8 +156,8 @@ class App extends React.Component {
                     <input type="radio" id="inc1000" name="increment" value="1000"/><label for="inc1000">1000</label>
                 </div>
 
-                <button onClick={() => this.modifyPlayerPoints(-1)} className="point-adjust">-</button>
-                <button onClick={() => this.modifyPlayerPoints(1)} className="point-adjust">+</button>
+                <button onClick={() => this.modifyPlayerPoints(-1)} className="double-button">-</button>
+                <button onClick={() => this.modifyPlayerPoints(1)} className="double-button">+</button>
 
                 <button onClick={() => this.changeWindow(WINDOWS.MENU)}>Done</button>
 
@@ -237,6 +250,36 @@ class App extends React.Component {
         )
     }
 
+    readQuestionPanel() {
+        if (!this.state.gameState || !this.state.gameState.activeQuestion) { return; }
+        
+        return (
+            <div className="question" style={{ display: this.state.window === WINDOWS.QUESTION ? "block" : "none" }}>
+                <p className="question-details">{this.state.gameState.activeCategory.title}</p>
+                <p className="question-details" id="question-text">{this.state.gameState.activeQuestion.title}</p>
+                <p className="question-details">Answer: {this.state.gameState.activeQuestion.answer}</p>
+
+                <hr></hr>
+                <h4>Player Controls</h4>
+                <div id="player-controls">
+                    <p id="buzzed-player">Callum</p>
+                    <button type="button" className="question-buttons double-button validate-buttons" id="correct-button">✔</button>
+                    <button type="button" className="question-buttons double-button validate-buttons" id="incorrect-button">✘</button>
+                </div>
+
+                <hr></hr>
+                <h4>Display Controls</h4>
+                <div id="display-controls">
+                    <button type="button" className="question-buttons double-button" id="replay-button">Replay</button>
+                    <button type="button" className="question-buttons double-button" id="answer-button">Show Answer</button>
+                </div>
+
+                <hr></hr>
+                <button type="button" id="question-done-button">Done</button>
+            </div>
+        )
+    }
+
 
     render() {
         return (
@@ -258,8 +301,8 @@ class App extends React.Component {
 
                 {this.pickCategoryPanel()}
                 {this.pickQuestionPanel()}
-                <div className="question" style={{ display: this.state.window === WINDOWS.QUESTION ? "block" : "none" }}>
-                </div>
+                {this.readQuestionPanel()}
+                
 
                 {this.viewPlayersPanel()}
                 {this.editPanel()}

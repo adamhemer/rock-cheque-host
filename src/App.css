@@ -93,17 +93,6 @@ h2, h3 {
   margin-top: 5vh;
 }
 
-.point-adjust {
-  margin: auto 5%;
-  -webkit-margin-collapse: collapse;
-  display: inline;
-  width: 40%;
-  float: left;
-  font-size: 10vh;
-  line-height: 0;
-  font-weight: 100;
-}
-
 button {
   font-size: 4vh;
   /* font-weight: bold; */
@@ -133,4 +122,76 @@ button {
   display: flex;
   justify-content: center;
   margin-bottom: 10vh;
+}
+
+.double-button {
+  margin: auto 5%;
+  -webkit-margin-collapse: collapse;
+  display: inline;
+  width: 40%;
+  float: left;
+  font-size: 7vh;
+  line-height: 0;
+  font-weight: 100;
+}
+
+h4 {
+  font-size: 3vh;
+  margin: 0;
+  text-align: center;
+}
+
+hr {
+  display: inline-block;
+  width: 100%;
+}
+
+#replay-button, #answer-button {
+  font-size: 3vh;
+  margin-top: 2vh;
+  margin-bottom: 2vh;
+  line-height: 3vh;
+}
+
+.question-buttons {
+  height: 8vh;
+}
+
+.validate-buttons {
+  margin-bottom: 2vh;
+  font-size: 5vh;
+}
+
+#correct-button {
+  color: black;
+  background-color: lime;
+}
+
+#incorrect-button {
+  color: black;
+  background-color: red;
+}
+
+#buzzed-player {
+  font-size: 5vh;
+  text-align: center;
+  margin: 2vh 10% 3vh 10%;
+  width: 80%;
+  border: 1px solid black;
+}
+
+#question-done-button {
+  /* height: 7vh; */
+  line-height: 0;
+}
+
+.question-details {
+  text-align: center;
+  font-size: 2.8vh;
+  padding: 0;
+  margin: 1vh;
+}
+
+#question-text {
+  font-size: 4vh;
 }
