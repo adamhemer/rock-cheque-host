@@ -114,14 +114,14 @@ button {
 #bind-name {
   font-size: 4vh;
   width: 60%;
-  margin: 10% 20%;
+  margin: 3vh 20%;
 }
 
 #colour-picker {
   width: 100%;
   display: flex;
   justify-content: center;
-  margin-bottom: 10vh;
+  /* margin-bottom: 10vh; */
 }
 
 .double-button {
@@ -146,7 +146,7 @@ hr {
   width: 100%;
 }
 
-#start-button, #answer-button {
+.question-text-button {
   font-size: 3vh;
   margin-top: 2vh;
   margin-bottom: 2vh;
@@ -206,4 +206,29 @@ hr {
   width: 80%;
   margin: 10%;
   height: 60vh;
+}
+
+#bind-log {
+  height: 10vh;
+  overflow: hidden;
+}
+
+.log-flex-container {
+  width: 80%;
+  margin: 3vh 10%;
+
+  border: 1px solid black;
+  overflow: auto;
+  display:flex; 
+  flex-direction:column-reverse;
+}
+
+.colour-button {
+  margin: 3vh 25%;
+  -webkit-margin-collapse: collapse;
+  display: inline;
+  width: 50%;
+  height: 5vh;
+  float: left;
+  background-color: white;
 }
