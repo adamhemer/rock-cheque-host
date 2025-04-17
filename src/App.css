@@ -208,15 +208,9 @@ hr {
   height: 60vh;
 }
 
-#bind-log {
-  height: 10vh;
-  overflow: hidden;
-}
-
 .log-flex-container {
   width: 80%;
   margin: 3vh 10%;
-
   border: 1px solid black;
   overflow: auto;
   display:flex; 

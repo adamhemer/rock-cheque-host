@@ -71,7 +71,7 @@ const WINDOWS = {
     PICK_CATEGORY: "Select Category",
     PICK_QUESTION: "Select Question",
     QUESTION: "Question",
-    DEBUG: "Debug Options",
+    DEBUG: "Manual Control",
     LOG: "Event Log",
     EDIT_PICK_CATEGORY: "Edit Category",
     EDIT_PICK_QUESTION: "Edit Question",
@@ -83,8 +83,9 @@ class App extends React.Component {
         super(props);
         this.state = {
             window: WINDOWS.MENU,
-            gameState: { players: [] },
-            color: { hue: 90, saturation: 100, luminosity: 50, alpha: 1 }
+            gameState: { players: [], state: STATES.SETUP },
+            color: { hue: 90, saturation: 100, luminosity: 50, alpha: 1 },
+            serverResponding: false
         };
 
         this.serverAddress = "http://192.168.0.101:8000/";
@@ -267,7 +268,7 @@ class App extends React.Component {
                     <button className="colour-button question-text-button" onClick={this.setColourWhite.bind(this)}>White</button>
                 </div>
 
-                {this.genericLogPanel(WINDOWS.BIND_PLAYER, "15vh")}
+                {this.genericLogPanel(WINDOWS.BIND_PLAYER, "8vh")}
 
                 <button className="double-button question-text-button" onClick={this.bindPlayer.bind(this)} type="button">Bind</button>
                 <button className="double-button question-text-button" onClick={this.clearBindSettings.bind(this)} type="button">Clear</button>
@@ -315,7 +316,7 @@ class App extends React.Component {
                                                                     name={p.name}
                                                                     index={p.buzzer}
                                                                     colour={p.colour}>
-                                                            </Player>)
+                                                            </Player>);
         return (
             <div className="players" style={{ display: this.state.window === WINDOWS.PLAYERS ? "block" : "none" }}>
                 {players}
@@ -400,10 +401,14 @@ class App extends React.Component {
     }
 
     pickQuestionButton() {
-        if (!this.state.gameState || !this.state.gameState.activeQuestion) {
-            this.changeWindow(WINDOWS.PICK_CATEGORY);
+        if (this.state.gameState.state === STATES.SETUP) {
+            this.server.post("start-game");
         } else {
-            this.changeWindow(WINDOWS.QUESTION);
+            if (!this.state.gameState || !this.state.gameState.activeQuestion) {
+                this.changeWindow(WINDOWS.PICK_CATEGORY);
+            } else {
+                this.changeWindow(WINDOWS.QUESTION);
+            }
         }
     }
 
@@ -572,12 +577,12 @@ class App extends React.Component {
                 </div>
 
                 <div className="main-menu" style={{ display: this.state.window === WINDOWS.MENU ? "block" : "none" }}>
-                    <button onClick={() => this.pickQuestionButton()} type="button">Pick Question</button>
+                    <button onClick={() => this.pickQuestionButton()} type="button">{this.state.gameState.state === STATES.SETUP ? "Start Game" : "Pick Question"}</button>
                     <button onClick={() => this.changeWindow(WINDOWS.PLAYERS)} type="button">View Players</button>
                     <button onClick={() => this.openBindWindow()} type="button">Bind Player</button>
                     <button onClick={() => this.openLogWindow()} type="button">Event Log</button>
                     <button onClick={() => this.changeWindow(WINDOWS.DEMO)} type="button">Demo Mode</button>
-                    <button onClick={() => this.changeWindow(WINDOWS.DEBUG)} type="button">Debug</button>
+                    <button onClick={() => this.changeWindow(WINDOWS.DEBUG)} type="button">Manual</button>
                 </div>
 
                 {this.pickCategoryPanel()}
