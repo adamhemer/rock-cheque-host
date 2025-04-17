@@ -7,6 +7,44 @@ import axios from "axios";
 import hslToHex from "hsl-to-hex";
 require('hsl-to-hex');
 
+const clcPattern = /(\x1b\[(\d{1,2})m)?([^\x1b]*)(\x1b\[(\d{1,2})m)?/
+// const clcPattern = /(.*)/
+
+const clcColours = new Map([
+    [30, "black"],
+    [31, "darkred"],
+    [32, "green"],
+    [33, "darkyellow"],
+    [34, "darkblue"],
+    [35, "darkmagenta"],
+    [36, "darkcyan"],
+    [37, "gray"],
+    [90, "darkgray"],
+    [91, "red"],
+    [92, "lime"],
+    [93, "yellow"],
+    [94, "blue"],
+    [95, "magenta"],
+    [96, "cyan"],
+    [97, "white"],
+    [40, "black"],
+    [41, "darkred"],
+    [42, "lime"],
+    [43, "darkyellow"],
+    [44, "darkblue"],
+    [45, "darkmagenta"],
+    [46, "darkcyan"],
+    [47, "gray"],
+    [100, "darkgray"],
+    [101, "red"],
+    [102, "lime"],
+    [103, "yellow"],
+    [104, "blue"],
+    [105, "magenta"],
+    [106, "cyan"],
+    [107, "white"]
+]);
+
 const PLAYER_NAMES = [ "Adam", "Dylan", "Callum", "James", "Hayley", "Koni", "Beth", "Leah", "Emily", "Sam", "Lauren", "Dan" ].sort(function(a, b){
     if (a < b) { return -1; }if (a > b) { return 1; } return 0; });
 
@@ -33,22 +71,24 @@ const WINDOWS = {
     PICK_CATEGORY: "Select Category",
     PICK_QUESTION: "Select Question",
     QUESTION: "Question",
-    DEBUG: "Debug Options",
-    LOG: "Event Log"
+    DEBUG: "Manual Control",
+    LOG: "Event Log",
+    EDIT_PICK_CATEGORY: "Edit Category",
+    EDIT_PICK_QUESTION: "Edit Question",
+    EDITING_QUESTION: "Editing Question"
 }
-
-
 
 class App extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
             window: WINDOWS.MENU,
-            gameState: { players: [] },
-            color: { hue: 90, saturation: 100, luminosity: 50, alpha: 1 }
+            gameState: { players: [], state: STATES.SETUP },
+            color: { hue: 90, saturation: 100, luminosity: 50, alpha: 1 },
+            serverResponding: false
         };
 
-        this.serverAddress = "http://192.168.0.128:8000/";
+        this.serverAddress = "http://192.168.0.101:8000/";
         this.server = axios.create({
             baseURL: this.serverAddress,
             timeout: 1000
@@ -66,21 +106,33 @@ class App extends React.Component {
     }
     
     componentDidMount() {
+        this.registerHost();
         this.fetchData();
+        this.fetchInterval = setInterval(this.fetchState, 1000)
     }
 
     componentWillUnmount() {
-        if (this.fetchTimeout) {
-            clearTimeout(this.fetchTimeout);
+        // if (this.fetchTimeout) {
+        //     clearTimeout(this.fetchTimeout);
+        // }
+        if (this.fetchInterval) {
+            clearInterval(this.fetchInterval);
         }
     }
 
-    fetchData = () => {
+    registerHost = () => {
+        this.server.post('host');
+    }
+
+    fetchData = (callback) => {
         this.server.get('board-data')
             .then(res => {
-                console.log(res);
+                // console.log(res);
                 this.setState({ board: res.data }, () => {
-                    this.fetchState();
+                    if (callback) {
+                        callback();
+                    }
+                    // this.fetchState();
                 });
             });
     }
@@ -88,10 +140,9 @@ class App extends React.Component {
     fetchState = () => {
         this.server.get('game-state')
             .then(res => {
-                console.log(res);
-
+                // console.log(res);
                 this.setState({ gameState: res.data }, () => {
-                    console.log(this.state.gameState.players[0]);
+                    // console.log(this.state.gameState.players[0]);
 
                     // if (this.state.gameState.state >= STATES.WAITING && this.state.gameState.state <= STATES.ANSWERED) {
                     //     console.log("Question")
@@ -104,13 +155,17 @@ class App extends React.Component {
                     //     });
                     // }
 
-
                 });
-                this.fetchTimeout = setTimeout(this.fetchState, 1000)
 
             });
-    }
 
+        if (this.state.window === WINDOWS.BIND_PLAYER) {
+            this.server.get('event-log')
+            .then(res => {
+                this.setState({ log: res.data });
+            });
+        }
+    }
 
     changeWindow(window) {
         this.setState({ window: window });
@@ -168,10 +223,11 @@ class App extends React.Component {
     colourPickerChange(hue) {
         this.setState({ color: {
             hue: hue,
-            saturation: this.state.color.saturation,
-            luminosity: this.state.color.luminosity,
-            alpha: this.state.color.alpha
+            saturation: 100,
+            luminosity: 50,
+            alpha: 1
         }})
+        console.log(this.state);
     };
 
     bindPlayer() {
@@ -184,6 +240,19 @@ class App extends React.Component {
         });
     }
 
+    clearBindSettings() {
+        document.getElementById("bind-name").value = "";
+    }
+
+    setColourWhite() {
+        this.setState({ color: {
+            hue: this.state.color.hue,
+            saturation: 0,
+            luminosity: 100,
+            alpha: 1
+        }})
+    }
+
     bindPanel() {
         return (
             <div className="bind-player" style={{ display: this.state.window === WINDOWS.BIND_PLAYER ? "block" : "none" }}>
@@ -193,10 +262,16 @@ class App extends React.Component {
                 </datalist>
 
                 <div id="colour-picker">
-                    <ColorPicker {...this.state.color} onInput={this.colourPickerChange.bind(this)} />
+                    <ColorPicker variant="persistent" {...this.state.color} onInput={this.colourPickerChange.bind(this)} />
+                </div>
+                <div>
+                    <button className="colour-button question-text-button" onClick={this.setColourWhite.bind(this)}>White</button>
                 </div>
 
-                <button onClick={this.bindPlayer.bind(this)} type="button">Bind</button>
+                {this.genericLogPanel(WINDOWS.BIND_PLAYER, "8vh")}
+
+                <button className="double-button question-text-button" onClick={this.bindPlayer.bind(this)} type="button">Bind</button>
+                <button className="double-button question-text-button" onClick={this.clearBindSettings.bind(this)} type="button">Clear</button>
             </div>
         )
     }
@@ -210,7 +285,6 @@ class App extends React.Component {
 
     pickCategoryPanel() {
         if (!this.state.board) { return; }
-        console.log(this.state.board)
         return (
             <div className="pick-category" style={{ display: this.state.window === WINDOWS.PICK_CATEGORY ? "block" : "none" }}>
                 {this.state.board.map(category => <button onClick={() => this.pickCategory(category)} type="button">{category.title}</button>)}
@@ -242,7 +316,7 @@ class App extends React.Component {
                                                                     name={p.name}
                                                                     index={p.buzzer}
                                                                     colour={p.colour}>
-                                                            </Player>)
+                                                            </Player>);
         return (
             <div className="players" style={{ display: this.state.window === WINDOWS.PLAYERS ? "block" : "none" }}>
                 {players}
@@ -250,36 +324,248 @@ class App extends React.Component {
         )
     }
 
+    playerAnswer(state) {
+        this.server.post('answer-response', {
+            correct: state
+        });
+    }
+
+    activateBuzzers() {
+        this.server.post('activate-buzzers');
+    }
+
+    showAnswer() {
+        this.server.post('show-answer');
+    }
+
+    rewindMedia() {
+        this.server.post('rewind-media');
+    }
+
+    playMedia() {
+        this.server.post('play-media');
+    }
+
+    closeQuestion() {
+        this.server.post('select-question').then(() => {
+            this.fetchData();
+            this.state.window = WINDOWS.PICK_CATEGORY;
+        });
+    }
+
     readQuestionPanel() {
         if (!this.state.gameState || !this.state.gameState.activeQuestion) { return; }
         
+        let buzzedPlayer = "";
+        if (this.state.gameState.buzzedPlayer) {
+            buzzedPlayer = this.state.gameState.buzzedPlayer.name;
+        }
+
+        let startText = "Buzzers"
+        if (this.state.gameState.activeQuestion.type === "Video" || this.state.gameState.activeQuestion.type === "Audio") {
+            startText = "Start"
+        }
+
         return (
             <div className="question" style={{ display: this.state.window === WINDOWS.QUESTION ? "block" : "none" }}>
-                <p className="question-details">{this.state.gameState.activeCategory.title}</p>
+                <p className="question-details">{this.state.gameState.activeCategory.title} for {this.state.gameState.activeQuestion.reward}</p>
                 <p className="question-details" id="question-text">{this.state.gameState.activeQuestion.title}</p>
                 <p className="question-details">Answer: {this.state.gameState.activeQuestion.answer}</p>
+                {/* <p className="question-details">Reward: {this.state.gameState.activeQuestion.reward}</p> */}
 
                 <hr></hr>
                 <h4>Player Controls</h4>
                 <div id="player-controls">
-                    <p id="buzzed-player">Callum</p>
-                    <button type="button" className="question-buttons double-button validate-buttons" id="correct-button">✔</button>
-                    <button type="button" className="question-buttons double-button validate-buttons" id="incorrect-button">✘</button>
+                    <p id="buzzed-player">{buzzedPlayer}</p>
+                    <button onClick={() => this.playerAnswer(true)} type="button" className="question-buttons double-button validate-buttons" id="correct-button" disabled={this.state.gameState.state !== STATES.BUZZED}>✔</button>
+                    <button onClick={() => this.playerAnswer(false)} type="button" className="question-buttons double-button validate-buttons" id="incorrect-button" disabled={this.state.gameState.state !== STATES.BUZZED}>✘</button>
                 </div>
 
                 <hr></hr>
-                <h4>Display Controls</h4>
+                <h4>Game Controls</h4>
                 <div id="display-controls">
-                    <button type="button" className="question-buttons double-button" id="replay-button">Replay</button>
-                    <button type="button" className="question-buttons double-button" id="answer-button">Show Answer</button>
+                    <button onClick={this.activateBuzzers.bind(this)} type="button" className="question-buttons double-button question-text-button" id="start-button" disabled={this.state.gameState.state !== STATES.WAITING}>{startText}</button>
+                    <button onClick={this.showAnswer.bind(this)} type="button" className="question-buttons double-button question-text-button" id="answer-button" disabled={this.state.gameState.state < STATES.ARMED || this.state.gameState.state === STATES.ANSWERED}>Show Answer</button>
+                </div>
+
+                <div className="media-controls" style={{ display: this.state.gameState.activeQuestion.type === "Video" || this.state.gameState.activeQuestion.type === "Audio" ? "block" : "none" }}>
+                    <hr></hr>
+                    <button onClick={this.rewindMedia.bind(this)} type="button" className="question-buttons double-button question-text-button" id='rewind-button'>Rewind</button>
+                    <button onClick={this.playMedia.bind(this)} type="button" className="question-buttons double-button question-text-button" id='play-button'>Play</button>
                 </div>
 
                 <hr></hr>
-                <button type="button" id="question-done-button">Done</button>
+                <button onClick={this.closeQuestion.bind(this)} type="button" id="question-done-button">Done</button>
             </div>
         )
     }
 
+    pickQuestionButton() {
+        if (this.state.gameState.state === STATES.SETUP) {
+            this.server.post("start-game");
+        } else {
+            if (!this.state.gameState || !this.state.gameState.activeQuestion) {
+                this.changeWindow(WINDOWS.PICK_CATEGORY);
+            } else {
+                this.changeWindow(WINDOWS.QUESTION);
+            }
+        }
+    }
+
+    openLogWindow() {
+        this.server.get('event-log')
+        .then(res => {
+            this.setState({ log: res.data });
+            this.changeWindow(WINDOWS.LOG);
+        });
+    }
+
+    openBindWindow() {
+        this.server.get('event-log')
+        .then(res => {
+            this.setState({ log: res.data });
+            this.changeWindow(WINDOWS.BIND_PLAYER);
+        });
+    }
+
+    // logPanel() {
+    //     if (!this.state.log || !this.window === WINDOWS.LOG) { return; }
+    //     // var textarea = document.getElementById('textarea_id');
+    //     // textarea.scrollTop = textarea.scrollHeight;
+    //     return (
+    //         // <div className="log-panel" style={{ display: this.state.window === WINDOWS.LOG ? "block" : "none" }}>
+    //         //     <textarea className="event-log" readOnly={true} value={"> " + this.state.log.join("\n> ")}></textarea>
+    //         // </div>
+    //         <div className="log-flex-container" style={{ height: "70vh" }}>
+    //             <div>
+    //                 {this.state.log.map(line => <div>{line}</div>)}
+    //             </div>
+    //         </div>
+    //     )
+    // }
+
+    // bindLogPanel() {
+    //     if (!this.state.log || !this.window === WINDOWS.BIND_PLAYER) { return; }
+    //     // var textarea = document.getElementById('textarea_id');
+    //     // textarea.scrollTop = textarea.scrollHeight;
+    //     return (
+    //         // <div className="log-panel" style={{ display: this.state.window === WINDOWS.BIND_PLAYER ? "block" : "none" }}>
+    //         //     <textarea className="event-log" id="bind-log" readOnly={true} value={"> " + this.state.log.join("\n> ")}></textarea>
+    //         // </div>
+    //         <div className="log-flex-container" style={{ height: "15vh" }}>
+    //             <div>
+    //                 {this.state.log.map(line => <div>{line}</div>)}
+    //             </div>
+    //         </div>
+    //     )
+    // }
+
+    genericLogPanel(window, height) {
+        if (!this.state.log || !(this.state.window === window)) { return; }
+        return (
+            <div className="log-flex-container" style={{ height: height }}>
+                <div>
+                    {this.state.log.map(line => {
+                        const result = clcPattern.exec(line);
+                        const style = {}
+                        
+
+                        if (result[2] !== undefined) {
+
+                            if (result[2] < 40 || (result[2] >= 90 && result[2] < 100)) {
+                                style.color = clcColours.get(parseInt(result[2]));
+                            } else {
+                                style.backgroundColor = clcColours.get(parseInt(result[2]));
+                            }
+                        }
+
+
+                        return <div style={style}>{result[3]}</div>
+                    })}
+                </div>
+            </div>
+        )
+    }
+
+
+    // Debug editing
+    editPickCategory(category) {
+        this.setState({
+            editingCategory: category
+        });
+        this.changeWindow(WINDOWS.EDIT_PICK_QUESTION);
+    }
+
+    editPickCategoryPanel() {
+        if (!this.state.board) { return; }
+        return (
+            <div className="pick-category" style={{ display: this.state.window === WINDOWS.EDIT_PICK_CATEGORY ? "block" : "none" }}>
+                {this.state.board.map(category => <button onClick={() => this.editPickCategory(category)} type="button">{category.title}</button>)}
+            </div>
+        )
+    }
+
+    editPickQuestion(question) {
+        this.setState({
+            editingQuestion: question
+        });
+        this.changeWindow(WINDOWS.EDITING_QUESTION);
+    }
+
+    editPickQuestionPanel() {
+        if (!this.state.editingCategory) { return; }
+        return (
+            <div className="pick-question" style={{ display: this.state.window === WINDOWS.EDIT_PICK_QUESTION ? "block" : "none" }}>
+                {this.state.editingCategory.questions.map(question => <button onClick={() => this.editPickQuestion(question)} type="button">{question.reward}</button>)}
+            </div>
+        )
+    }
+
+    setQuestionComplete(complete) {
+        this.server.post("override-question-state", {
+            category: this.state.editingCategory.title,
+            question: this.state.editingQuestion.title,
+            complete: complete
+        }).then(() => {
+            this.fetchData(this.updateEditingQuestion.bind(this));
+            this.server.post('select-question');
+        });
+    }
+
+    
+    editQuestionPanel() {
+        if (!this.state.gameState || !this.state.editingQuestion) { return; }
+        
+        return (
+            <div className="question" style={{ display: this.state.window === WINDOWS.EDITING_QUESTION ? "block" : "none" }}>
+                <p className="question-details">{this.state.editingCategory.title} for {this.state.editingQuestion.reward}</p>
+                <p className="question-details" id="question-text">{this.state.editingQuestion.title}</p>
+                <p className="question-details">Answer: {this.state.editingQuestion.answer}</p>
+                {/* <p className="question-details">Reward: {this.state.gameState.activeQuestion.reward}</p> */}
+
+
+                <hr></hr>
+                <h4>Game Controls</h4>
+                <div id="display-controls">
+                    <button onClick={() => this.setQuestionComplete(true)} type="button" className="question-buttons double-button question-text-button" id="set-completed-button" disabled={this.state.editingQuestion.complete}>Set Completed</button>
+                    <button onClick={() => this.setQuestionComplete(false)} type="button" className="question-buttons double-button question-text-button" id="set-complete-button" disabled={!this.state.editingQuestion.complete}>Set Incomplete</button>
+                </div>
+
+                <hr></hr>
+                <button onClick={() => this.changeWindow(WINDOWS.DEBUG)} type="button" id="question-done-button">Done</button>
+            </div>
+        )
+    }
+
+    updateEditingQuestion() {
+        console.log("Updating the editing...");
+        console.log(this.state.board);
+        const updatedCategory = this.state.board.find(c => c.title === this.state.editingCategory.title);
+        const updatedQuestion = updatedCategory.questions.find(q => q.title === this.state.editingQuestion.title);
+        this.setState({
+            editingQuestion: updatedQuestion
+        });
+    }
 
     render() {
         return (
@@ -291,12 +577,12 @@ class App extends React.Component {
                 </div>
 
                 <div className="main-menu" style={{ display: this.state.window === WINDOWS.MENU ? "block" : "none" }}>
-                    <button onClick={() => this.changeWindow(WINDOWS.PICK_CATEGORY)} type="button">Pick Question</button>
+                    <button onClick={() => this.pickQuestionButton()} type="button">{this.state.gameState.state === STATES.SETUP ? "Start Game" : "Pick Question"}</button>
                     <button onClick={() => this.changeWindow(WINDOWS.PLAYERS)} type="button">View Players</button>
-                    <button onClick={() => this.changeWindow(WINDOWS.BIND_PLAYER)} type="button">Bind Player</button>
-                    <button onClick={() => this.changeWindow(WINDOWS.LOG)} type="button">Event Log</button>
+                    <button onClick={() => this.openBindWindow()} type="button">Bind Player</button>
+                    <button onClick={() => this.openLogWindow()} type="button">Event Log</button>
                     <button onClick={() => this.changeWindow(WINDOWS.DEMO)} type="button">Demo Mode</button>
-                    <button onClick={() => this.changeWindow(WINDOWS.DEBUG)} type="button">Debug</button>
+                    <button onClick={() => this.changeWindow(WINDOWS.DEBUG)} type="button">Manual</button>
                 </div>
 
                 {this.pickCategoryPanel()}
@@ -309,15 +595,19 @@ class App extends React.Component {
                 
                 {this.bindPanel()}
                 
-                <div className="log-panel" style={{ display: this.state.window === WINDOWS.LOG ? "block" : "none" }}></div>
+                {this.genericLogPanel(WINDOWS.LOG, "70vh")}
                 <div className="demo-panel" style={{ display: this.state.window === WINDOWS.DEMO ? "block" : "none" }}></div>
                 <div className="debug" style={{ display: this.state.window === WINDOWS.DEBUG ? "block" : "none" }}>
                     <button onClick={() => this.changeWindow(WINDOWS.GAME_STATE)} type="button">Game State</button>
                     <button onClick={() => this.changeWindow(WINDOWS.CONTROL_BOARD)} type="button">Control Board</button>
+                    <button onClick={() => this.changeWindow(WINDOWS.EDIT_PICK_CATEGORY)} type="button">Edit Questions</button>
                 </div>
                 <div className="game-state" style={{ display: this.state.window === WINDOWS.GAME_STATE ? "block" : "none" }}></div>
                 <div className="control-board" style={{ display: this.state.window === WINDOWS.CONTROL_BOARD ? "block" : "none" }}></div>
-                
+     
+                {this.editPickCategoryPanel()}
+                {this.editPickQuestionPanel()}
+                {this.editQuestionPanel()}
                     
 
 
