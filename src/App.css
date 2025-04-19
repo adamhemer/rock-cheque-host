@@ -226,3 +226,49 @@ hr {
   float: left;
   background-color: white;
 }
+
+.save-table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+.save-cell {
+  width: 30vw;
+  text-align: center;
+  font-size: 6vw;
+  border-right: 0.2vw solid gray;
+  border-collapse: collapse;
+
+}
+
+.save-load {
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  font-size: 3vw;
+}
+
+.save-block {
+  width: 90vw;
+  border: 0.2vw solid gray;
+  border-radius: 4vw;
+  padding: 2vw;
+  margin: 1vw;
+  background-color: rgb(246, 246, 246);
+}
+
+.save-date {
+  text-align: center;
+  font-size: 5vw;
+  margin: 2vh 0 0 0;
+}
+
+.save-header {
+  font-weight: bold;
+  border-bottom: 0.2vw solid gray;
+}
+
+td:last-child {
+  border-right: 0;
+}
+

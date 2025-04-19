@@ -10,6 +10,18 @@ require('hsl-to-hex');
 const clcPattern = /(\x1b\[(\d{1,2})m)?([^\x1b]*)(\x1b\[(\d{1,2})m)?/
 // const clcPattern = /(.*)/
 
+const STATES_LOOKUP = [
+    "SETUP",       // Asigning players to buzzers, choosing colours, etc
+    "DEMO",        // Let players try out the remotes
+    "SELECTION",   // On the category board
+    "WAITING",     // Question shown but players cant buzz yet
+    "ARMED",       // Players can buzz in
+    "BUZZED",      // A player has buzzed in
+    "ANSWERED",    // The question has been answered correctly, show answer
+    "TIEBREAK",    // Extra question for tiebreaking
+    "GAMEOVER"     // All questions are complete, show final scores
+]
+
 const clcColours = new Map([
     [30, "black"],
     [31, "darkred"],
@@ -71,11 +83,13 @@ const WINDOWS = {
     PICK_CATEGORY: "Select Category",
     PICK_QUESTION: "Select Question",
     QUESTION: "Question",
-    DEBUG: "Manual Control",
+    DEBUG: "Game Controls",
     LOG: "Event Log",
     EDIT_PICK_CATEGORY: "Edit Category",
     EDIT_PICK_QUESTION: "Edit Question",
-    EDITING_QUESTION: "Editing Question"
+    EDITING_QUESTION: "Editing Question",
+    LOAD_GAME: "Load",
+    SAVE_GAME: "Save"
 }
 
 class App extends React.Component {
@@ -85,10 +99,11 @@ class App extends React.Component {
             window: WINDOWS.MENU,
             gameState: { players: [], state: STATES.SETUP },
             color: { hue: 90, saturation: 100, luminosity: 50, alpha: 1 },
-            serverResponding: false
+            serverResponding: false,
+            savedGames: null
         };
 
-        this.serverAddress = "http://192.168.0.101:8000/";
+        this.serverAddress = "http://10.56.120.65:8000/";
         this.server = axios.create({
             baseURL: this.serverAddress,
             timeout: 1000
@@ -567,6 +582,111 @@ class App extends React.Component {
         });
     }
 
+    openLoadWindow() {
+        this.setState({ savedGames: null });
+
+        this.server.get('read-save-games')
+        .then(res => {
+            console.log(res);
+            this.setState({ savedGames: res.data });
+        });
+
+
+        this.changeWindow(WINDOWS.LOAD_GAME);
+    }
+
+    loadPanel() {
+        let saveList;
+        if (this.state.savedGames !== null && this.state.savedGames.length > 0) {
+            saveList = this.state.savedGames.map(save => {
+                const datePattern = /(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/
+                const match = save.path.match(datePattern);
+                const hour = match[4] % 12 || 12;
+                const ampm = match[4] < 12 ? "AM" : "PM";
+                return (
+                    <div className="save-block">
+                        <table className="save-table">
+                            <thead>
+                                <tr>
+                                    <td className="save-cell save-header">Name</td>
+                                    <td className="save-cell save-header">Points</td>
+                                    <td className="save-cell save-header">Buzzer</td>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {save.playerData.map(player => 
+                                    <tr>
+                                        <td className="save-cell" style={{color: "#" + player.colour}}>{player.name}</td>
+                                        <td className="save-cell">{player.points}</td>
+                                        <td className="save-cell">{player.buzzer}</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                        <p className="save-date">{hour}:{match[5]}:{match[6]} {ampm}, {match[3]}/{match[2]}/{match[1]}</p>
+                        <button onClick={() => this.loadGame(save.path)}>Load</button>
+                    </div>
+                )
+            });
+        } else {
+            saveList = <p className="save-load">No saved games found.</p>
+        }
+        return (
+            <div className="save-load" style={{ display: this.state.window === WINDOWS.LOAD_GAME ? "flex" : "none" }}>
+                {this.state.savedGames === null ? "Loading saves..." : null}
+                {saveList}
+            </div>
+        )
+    }
+
+    loadGame(path) {
+        this.server.post('load-game', {
+            path: path
+        }).then(res => {
+            this.server.get('event-log')
+            .then(res => {
+                this.setState({ log: res.data });
+            });
+        });
+    }
+
+    openSaveWindow() {
+        this.server.get('event-log')
+        .then(res => {
+            this.setState({ log: res.data });
+            this.changeWindow(WINDOWS.SAVE_GAME);
+        });
+    }
+
+    savePanel() {
+        return (
+            <div className="save-game" style={{ display: this.state.window === WINDOWS.SAVE_GAME ? "block" : "none" }}>
+                {this.genericLogPanel(WINDOWS.SAVE_GAME, "8vh")}
+                <br></br>
+                <button className="question-text-button" onClick={this.saveGame.bind(this)} type="button">Save Game</button>
+            </div>
+        )
+    }
+
+    saveGame() {
+        this.server.post('save-game')
+        .then(res => {
+            this.server.get('event-log')
+            .then(res => {
+                this.setState({ log: res.data });
+            });
+        });
+    }
+
+    gameStatePanel() {
+        return (
+            <div className="game-state" style={{ display: this.state.window === WINDOWS.GAME_STATE ? "flex" : "none" }}>
+                <p>ID: {this.state.gameState.gameID}</p>
+                <p>State: {STATES_LOOKUP[this.state.gameState.state]}</p>
+            </div>
+        )
+    }
+
     render() {
         return (
             <div className="App">
@@ -582,7 +702,7 @@ class App extends React.Component {
                     <button onClick={() => this.openBindWindow()} type="button">Bind Player</button>
                     <button onClick={() => this.openLogWindow()} type="button">Event Log</button>
                     <button onClick={() => this.changeWindow(WINDOWS.DEMO)} type="button">Demo Mode</button>
-                    <button onClick={() => this.changeWindow(WINDOWS.DEBUG)} type="button">Manual</button>
+                    <button onClick={() => this.changeWindow(WINDOWS.DEBUG)} type="button">Game Controls</button>
                 </div>
 
                 {this.pickCategoryPanel()}
@@ -601,6 +721,8 @@ class App extends React.Component {
                     <button onClick={() => this.changeWindow(WINDOWS.GAME_STATE)} type="button">Game State</button>
                     <button onClick={() => this.changeWindow(WINDOWS.CONTROL_BOARD)} type="button">Control Board</button>
                     <button onClick={() => this.changeWindow(WINDOWS.EDIT_PICK_CATEGORY)} type="button">Edit Questions</button>
+                    <button onClick={() => this.openSaveWindow()} type="button">Save Game</button>
+                    <button onClick={() => this.openLoadWindow()} type="button">Load Game</button>
                 </div>
                 <div className="game-state" style={{ display: this.state.window === WINDOWS.GAME_STATE ? "block" : "none" }}></div>
                 <div className="control-board" style={{ display: this.state.window === WINDOWS.CONTROL_BOARD ? "block" : "none" }}></div>
@@ -608,6 +730,9 @@ class App extends React.Component {
                 {this.editPickCategoryPanel()}
                 {this.editPickQuestionPanel()}
                 {this.editQuestionPanel()}
+                {this.loadPanel()}
+                {this.savePanel()}
+                {this.gameStatePanel()}
                     
 
 
